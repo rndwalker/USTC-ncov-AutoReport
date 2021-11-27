@@ -1,41 +1,39 @@
-import pytz
-import re
-import sys
-import argparse
 from bs4 import BeautifulSoup
 import requests
-import json
-import numpy as np
+
+
 class Login:
-    def __init__(self, stuid, password, origin, service, exam):
-        self.stuid=stuid
-        self.password=password
-        self.origin=origin
-        self.service=service
-        self.exam=exam
+    def __init__(self, username, password, origin, service, exam):
+        self.username = username
+        self.password = password
+        self.origin = origin
+        self.service = service
+        self.exam = exam
 
     def passport(self):
-        data=self.session.get('https://passport.ustc.edu.cn/login?service='+self.service)
-        data=data.text
-        data = data.encode('ascii','ignore').decode('utf-8','ignore')
+        data = self.session.get(
+            'https://passport.ustc.edu.cn/login?service='+self.service)
+        data = data.text
+        data = data.encode('ascii', 'ignore').decode('utf-8', 'ignore')
         soup = BeautifulSoup(data, 'html.parser')
         CAS_LT = soup.find("input", {"name": "CAS_LT"})['value']
-        self.session.get('https://passport.ustc.edu.cn/validatecode.jsp?type=login',stream=True)
+        self.session.get(
+            'https://passport.ustc.edu.cn/validatecode.jsp?type=login', stream=True)
         data = {
             'model': 'uplogin.jsp',
             'service': self.service,
             'warn': '',
             'showCode': '0',
-            'username': self.stuid,
+            'username': self.username,
             'password': str(self.password),
             'button': '',
-            'CAS_LT':CAS_LT,
-            'LT':''
+            'CAS_LT': CAS_LT,
+            'LT': ''
         }
         self.session.post('https://passport.ustc.edu.cn/login', data=data)
-        
+
     def login(self):
-        self.session=requests.Session()
+        self.session = requests.Session()
         loginsuccess = False
         retrycount = 5
         while (not loginsuccess) and retrycount:
@@ -49,4 +47,4 @@ class Login:
                 print("Login Successful!")
                 loginsuccess = True
         return loginsuccess
-        
+
