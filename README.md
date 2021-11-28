@@ -12,5 +12,5 @@ See https://github.com/xbb1973/USTC-ncov-AutoReport and https://github.com/Kobe9
 |PASSWORD|password|your CAS password|(required)|
 |/|--data_path|path to your own data used for post method|data.json|
 |CONTNAME|--cont_name|your contact's name|张三|
-|CONTREL|--cont_name|your contact's relationship with you|无|
-|CONTNAME|--cont_name|your contact's number|13800138000|
+|CONTREL|--cont_rel|your contact's relationship with you|无|
+|CONTNUM|--cont_num|your contact's number|13800138000|
