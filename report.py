@@ -1,4 +1,3 @@
-import time
 import datetime
 import re
 import argparse
@@ -70,10 +69,35 @@ class Report(object):
                 print("{} second(s) before.".format(delta.seconds))
                 if delta.seconds < 120:
                     flag = True
-            if flag == False:
-                print("Report FAILED!")
-            else:
+
+            # data = login.session.get('https://weixine.ustc.edu.cn/2020/apply/daliy/i', headers=headers).text
+            # data = data.encode('ascii', 'ignore').decode('utf-8', 'ignore')
+            # soup = BeautifulSoup(data, 'html.parser')
+            # token = soup.find("input", {"name": "_token"})['value']
+
+            data = login.session.get('https://weixine.ustc.edu.cn/2020/apply/daliy/i?t=3', headers=headers).text
+            data = data.encode('ascii', 'ignore').decode('utf-8', 'ignore')
+            soup = BeautifulSoup(data, 'html.parser')
+            start_date = soup.find("input", {"id": "start_date"})['value']
+            end_date = soup.find("input", {"id": "end_date"})['value']
+            data = {
+                '_token': token,
+                'start_date': start_date,
+                'end_date': end_date,
+                'return_college[]': '东校区',
+                'return_college[]': '西校区',
+                'return_college[]': '南校区',
+                'return_college[]': '北校区',
+                'return_college[]': '中校区',
+                't': '3'}
+            post = login.session.post('https://weixine.ustc.edu.cn/2020/apply/daliy/post', data=data)
+            if post.url != 'https://weixine.ustc.edu.cn/2020/apply_total?t=d':
+                flag = False
+
+            if flag:
                 print("Report SUCCESSFUL!")
+            else:
+                print("Report FAILED!")
             return flag
         else:
             return False
@@ -100,7 +124,7 @@ if __name__ == "__main__":
         ret = autoreporter.report()
         if ret:
             break
-        print("*\n* Run "+count+" Failed, retry...\n*")
+        print("*\n* Run " + count + " Failed, retry...\n*")
         count = count + 1
     if count != 11:
         exit(0)
