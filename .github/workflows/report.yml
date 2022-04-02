@@ -1,4 +1,4 @@
-# Auto-report action script, 3 times a day
+# Auto-report action script, 2 times a day and on demand
 
 name: Auto-report action
 
@@ -8,7 +8,8 @@ on:
     branches:
       - master
   schedule:
-    - cron: '10 16 * * *'
+    - cron: '58 3 * * *'
+    - cron: '58 15 * * *'
   
 
 
@@ -35,4 +36,4 @@ jobs:
         CONTREL: ${{ secrets.Contrel }}
         CONTNUM: ${{ secrets.Contnum }}
       run: |
-        python report.py "$USERNAME" "$PASSWORD" --cont_name "$CONTNAME" --cont_rel "$CONTREL" --cont_num "$CONTNUM"
+        python report.py "$USERNAME" "$PASSWORD"
