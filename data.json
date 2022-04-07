@@ -12,11 +12,12 @@
 	"is_goto_danger": "0",
 	"other_detail": "",
 
-	"return_college[]": "东校区",
+	"return_college[]": "中校区",
 	"return_college[]": "西校区",
 	"return_college[]": "南校区",
 	"return_college[]": "北校区",
-	"return_college[]": "中校区",
+	"return_college[]": "东校区",
+	"reason": "实验",
 	"t": "3",
 
 	"jinji_lxr": "张三",
