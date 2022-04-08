@@ -1,5 +1,5 @@
 {
-	"juzhudi":"东校区",
+	"juzhudi": "东校区",
 	"body_condition": "1",
 	"body_condition_detail": "",
 	"now_status": "2",
@@ -11,18 +11,18 @@
 	"is_danger": "0",
 	"is_goto_danger": "0",
 	"other_detail": "",
-
-	"return_college[]": "中校区",
-	"return_college[]": "西校区",
-	"return_college[]": "南校区",
-	"return_college[]": "北校区",
-	"return_college[]": "东校区",
-	"reason": "实验",
+	"return_college[]": [
+		"中校区",
+		"西校区",
+		"南校区",
+		"北校区",
+		"东校区"
+	],
+	"reason": "实验、自习",
 	"t": "3",
-
 	"jinji_lxr": "张三",
 	"jinji_guanxi": "无",
 	"jiji_mobile": "13800138000",
-	"dorm_building":"321",
-	"dorm":"000"
+	"dorm_building": "321",
+	"dorm": "000"
 }

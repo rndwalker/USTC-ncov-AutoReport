@@ -8,8 +8,8 @@ on:
     branches:
       - master
   schedule:
-    - cron: '58 3 * * *'
-    - cron: '58 15 * * *'
+    - cron: '0 14 * * *'
+    - cron: '55 15 * * *'
   
 
 
@@ -32,8 +32,5 @@ jobs:
       env:
         USERNAME: ${{ secrets.Username }}
         PASSWORD: ${{ secrets.Password }}
-        CONTNAME: ${{ secrets.Contname }}
-        CONTREL: ${{ secrets.Contrel }}
-        CONTNUM: ${{ secrets.Contnum }}
       run: |
         python report.py "$USERNAME" "$PASSWORD"

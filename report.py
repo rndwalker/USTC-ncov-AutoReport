@@ -1,10 +1,8 @@
 import argparse
-import datetime
 import json
 import re
 import traceback
 
-import pytz
 from bs4 import BeautifulSoup
 
 from ustclogin2 import Login
@@ -55,20 +53,13 @@ class Report(object):
 		cross_url = 'https://weixine.ustc.edu.cn/2020/apply/daliy/i?t=3'
 		cross_return_url = 'https://weixine.ustc.edu.cn/2020/apply_total?t=d'
 		cross_post_url = 'https://weixine.ustc.edu.cn/2020/apply/daliy/post'
-		date_pattern = re.compile(
-			'202[0-9]-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}')
-		alert_attr = {'style': 'position: relative; top: 5px; color: #666;'}
+		success_alert = '上报成功'
+		time_diff_pattern = re.compile('((0|[1-9]\d*)(年|月|周|星期|日|天|小时|时|分钟|分|秒))+')
 		# Read JSON
 		data = None
 		with open(self.data_path, 'r+', encoding='utf-8') as f:
 			data = json.loads(f.read())
 			data['_token'] = token
-		# if self.cont_name:
-		# 	data['jinji_lxr'] = self.cont_name
-		# if self.cont_rel:
-		# 	data['jinji_guanxi'] = self.cont_rel
-		# if self.cont_num:
-		# 	data['jiji_mobile'] = self.cont_num
 		if not data:
 			print('*** FATAL ERROR\n*** Reading JSON Failed!\n*** Script Failed!\n')
 			return False
@@ -76,10 +67,6 @@ class Report(object):
 		try:
 			get = login.session.get(home_url, headers=headers)
 			soup = BeautifulSoup(get.text, 'html.parser')
-			alert = soup.find('span', alert_attr)
-			if date_pattern.search(alert.text):
-				date = date_pattern.search(alert.text).group()
-				print('Last report: ' + date)
 			jinji_lxr = soup.find('input', {'name': 'jinji_lxr'})['value']
 			jinji_guanxi = soup.find('input', {'name': 'jinji_guanxi'})['value']
 			jiji_mobile = soup.find('input', {'name': 'jiji_mobile'})['value']
@@ -98,29 +85,27 @@ class Report(object):
 		ret = 2
 		for tries in range(max_tries):
 			try:
-				login.session.post(daily_url, data=data, headers=headers)
-				get = login.session.get(home_url, headers=headers)
-				soup = BeautifulSoup(get.text, 'html.parser')
-				alert = soup.find('span', alert_attr)
-				if date_pattern.search(alert.text):
-					date = date_pattern.search(alert.text).group()
-					print('Latest report: ' + date)
-					date = date + ' +0800'
-					report_time = datetime.datetime.strptime(
-						date, '%Y-%m-%d %H:%M:%S %z')
-					time_now = datetime.datetime.now(pytz.timezone('Asia/Shanghai'))
-					time_diff = time_now - report_time
-					print('{} second(s) before.'.format(time_diff.seconds))
-					if time_diff.seconds < 120:
-						print('Daily Report Successful!')
-						ret = 0
-						break
-					print('* Error: Daily Report: Run {0} Finished but Failed to leave a record, retrying...'.format(
-						tries))
+				post = login.session.post(daily_url, data=data, headers=headers)
+				soup = BeautifulSoup(post.text, 'html.parser')
+				alert = soup.find('p', {'class': 'alert alert-success'})
+				if alert.text.find(success_alert) != -1:
+					print('Got Daily Report Success Alert!')
+					ret = 0
+				else:
+					print("* Warning: Daily Report: Failed to get success alert...")
+				if time_diff_pattern.search(alert.text):
+					time_diff = time_diff_pattern.search(alert.text).group()
+					print('Last report: {0} before.'.format(time_diff))
+					ret = 0
+				else:
+					print("* Warning: Daily Report: Failed to get last report time...")
+				if not ret:
+					print('Daily Report Successful!')
 					break
-				print(
-					'* Error: Daily Report: Run {0} Finished but Failed to get response from alert, retrying...'.format(
-						tries))
+				else:
+					print(
+						'* Error: Daily Report: Run {0} Finished but Failed to get response from alert, retrying...'.format(
+							tries))
 			except:
 				print('* Error: Daily Report: Run {0} Failed, detail as follows:'.format(tries))
 				print(traceback.format_exc())
