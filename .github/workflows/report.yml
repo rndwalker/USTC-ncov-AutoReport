@@ -9,7 +9,7 @@ on:
       - master
   schedule:
     - cron: '0 14 * * *'
-    - cron: '55 15 * * *'
+    - cron: '50 15 * * *'
   
 
 

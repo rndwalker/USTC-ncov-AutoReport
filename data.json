@@ -11,15 +11,6 @@
 	"is_danger": "0",
 	"is_goto_danger": "0",
 	"other_detail": "",
-	"return_college[]": [
-		"中校区",
-		"西校区",
-		"南校区",
-		"北校区",
-		"东校区"
-	],
-	"reason": "实验、自习",
-	"t": "3",
 	"jinji_lxr": "张三",
 	"jinji_guanxi": "无",
 	"jiji_mobile": "13800138000",
