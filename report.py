@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from ustclogin2 import Login
 
 
-def login(username, password):
+def do_login(username, password):
 	token = ''
 	login = Login(username, password, 'https://weixine.ustc.edu.cn/2020/caslogin')
 	if login.login():
@@ -19,6 +19,47 @@ def login(username, password):
 	return token, login
 
 
+def daily_report(login, url, data, headers):
+	post = login.session.post(url, data=data, headers=headers)
+	soup = BeautifulSoup(post.text, 'html.parser')
+	alert = soup.find('p', {'class': 'alert alert-success'})
+	if alert.text.find('上报成功') != -1:
+		print('Got Daily Report Success Alert!')
+	else:
+		print("* Warning: Daily Report: Failed to get success alert...")
+	search_result = re.compile('((0|[1-9]\\d*)(年|月|周|星期|日|天|小时|时|分钟|分|秒))+').search(alert.text)
+	if search_result:
+		time_diff = search_result.group().replace('年', ' year(s) ').replace('月', ' month(s) ') \
+			.replace('周', ' week(s) ').replace('星期', ' week(s) ').replace('日', ' day(s) ') \
+			.replace('天', ' day(s) ').replace('小时', ' hour(s) ').replace('时', ' hour(s) ') \
+			.replace('分钟', ' minute(s) ').replace('分', ' minute(s) ').replace('秒', ' second(s)')
+		print('Daily Report Successful!\nLast report: {} before.'.format(time_diff))
+		return True
+	else:
+		print("* Warning: Daily Report: Failed to get last report time...")
+	print('* Error: Daily Report: Finished but Failed to get response, retrying...')
+	return False
+
+
+def screenshot_generator(real_name, mobile_phone):
+	pass  # WIP
+
+
+def cross_campus_report(login, urls, data, headers):
+	get = login.session.get(urls[0], headers=headers)
+	soup = BeautifulSoup(get.text, 'html.parser')
+	start_date = soup.find('input', {'id': 'start_date'})['value']
+	end_date = soup.find('input', {'id': 'end_date'})['value']
+	data['start_date'] = start_date
+	data['end_date'] = end_date
+	post = login.session.post(urls[1], data=data, headers=headers)
+	if post.url == urls[2]:
+		print('Cross-campus Report Successful!\n{} to {}.'.format(start_date, end_date))
+		return True
+	print('* Error: Cross-campus Report: Finished but Failed to leave a record, retrying...')
+	return False
+
+
 def report(username, password, daily, screenshot, cross_campus, data_path, max_tries, real_name, mobile_phone):
 	# Constant Values
 	headers = {
@@ -26,8 +67,9 @@ def report(username, password, daily, screenshot, cross_campus, data_path, max_t
 		'origin': 'https://weixine.ustc.edu.cn',
 		'upgrade-insecure-requests': '1',
 		'content-type': 'application/x-www-form-urlencoded',
-		'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36',
-		'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+		'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+		              'Chrome/99.0.4844.51 Safari/537.36',
+		'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;',
 		'referer': 'https://weixine.ustc.edu.cn/2020/',
 		'accept-language': 'zh-CN,zh;q=0.9',
 		'Connection': 'close',
@@ -44,34 +86,34 @@ def report(username, password, daily, screenshot, cross_campus, data_path, max_t
 	cross_url = 'https://weixine.ustc.edu.cn/2020/apply/daliy/i?t=3'
 	cross_return_url = 'https://weixine.ustc.edu.cn/2020/apply_total?t=d'
 	cross_post_url = 'https://weixine.ustc.edu.cn/2020/apply/daliy/post'
-	success_alert = '上报成功'
-	time_diff_pattern = re.compile('((0|[1-9]\\d*)(年|月|周|星期|日|天|小时|时|分钟|分|秒))+')
-	ret=0
+	ret = 0
 	# Login
+	token, login = "", None
 	for tries in range(max_tries):
 		try:
-			token, login = login(username, password, max_tries)
+			token, login = do_login(username, password)
 			if token and login:
 				break
 		except:
-			print('* Error: Login: Get Token Failed in run {0}, detail as follows:'.format(tries))
+			print('* Error: Login: Get Token run {} throws error, detail as follows:'.format(tries))
 			print(traceback.format_exc())
 			continue
 	if not token or not login:
 		print('*** FATAL ERROR\n*** Login Failed!\n*** Script Failed!\n')
 		return 2
-	headers |= {'cookie', 'PHPSESSID=' + login.cookies.get('PHPSESSID') + ';XSRF-TOKEN=' + login.cookies.get(
-		'XSRF-TOKEN') + ';laravel_session=' + login.cookies.get('laravel_session')}
+	cookie = 'PHPSESSID=' + login.cookies.get('PHPSESSID') + ';XSRF-TOKEN=' + login.cookies.get(
+		'XSRF-TOKEN') + ';laravel_session=' + login.cookies.get('laravel_session')
+	headers |= {'cookie': cookie}
 	# Read JSON
 	try:
 		with open(data_path, 'r+', encoding='utf-8') as f:
 			data = json.loads(f.read())
 			if not data:
 				raise RuntimeError("* Error: Read JSON: Empty json found in {}!".format(data_path))
-			data |= {'_token', token}
-			cross_data |= {'_token', token}
+			data |= {'_token': token}
+			cross_data |= {'_token': token}
 	except:
-		print('*** FATAL ERROR\n*** Reading JSON Failed!\n*** Script Failed!\n')
+		print('*** FATAL ERROR\n*** Error reading JSON!\n*** Script Failed!\n')
 		print(traceback.format_exc())
 		return 4
 	# Getting Previous Daily Report Data
@@ -85,76 +127,68 @@ def report(username, password, daily, screenshot, cross_campus, data_path, max_t
 		dorm = soup.find('input', {'name': 'dorm'})['value']
 		if not real_name:
 			real_name = jinji_guanxi
+			print('Using real name from previous report...')
 		if not mobile_phone:
-			mobile_phone = jiji_mobile
+			mobile_phone = jiji_mobile[:3] + "****" + jiji_mobile[7:11]
+			print('Using mobile phone from previous report...')
 		data |= {'jinji_lxr': jinji_lxr, 'jinji_guanxi': jinji_guanxi, 'jiji_mobile': jiji_mobile,
 		         'dorm_building': dorm_building, 'dorm': dorm}
 	except:
-		print('* Warning: Daily Report: Getting Previous Report Data Failed, using default JSON:')
+		print('* Warning: Daily Report: Error getting previous report data, using default JSON:')
 		print(traceback.format_exc())
 	# Daily Report
 	if not daily:
 		print('Skipping Daily Report...')
 	else:
-		ret |= 8
+		print('Running Daily Report...')
+		flag = False
 		for tries in range(max_tries):
 			try:
-				post = login.session.post(daily_url, data=data, headers=headers)
-				soup = BeautifulSoup(post.text, 'html.parser')
-				alert = soup.find('p', {'class': 'alert alert-success'})
-				if alert.text.find(success_alert) != -1:
-					print('Got Daily Report Success Alert!')
-					ret &= -9
-				else:
-					print("* Warning: Daily Report: Failed to get success alert...")
-				if time_diff_pattern.search(alert.text):
-					time_diff = time_diff_pattern.search(alert.text).group()
-					print('Last report: {0} before.'.format(time_diff))
-					ret &= -9
-				else:
-					print("* Warning: Daily Report: Failed to get last report time...")
-				if not ret:
-					print('Daily Report Successful!')
+				if daily_report(login, daily_url, data, headers):
+					flag = True
 					break
-				else:
-					print(
-						'* Error: Daily Report: Run {0} Finished but Failed to get response from alert, retrying...'.format(
-							tries))
 			except:
-				print('* Error: Daily Report: Run {0} Failed, detail as follows:'.format(tries))
+				print('* Error: Daily Report: Run {} throws error, detail as follows:'.format(tries))
 				print(traceback.format_exc())
 				continue
-		if ret & 8:
-			print('* FATAL ERROR\n* Daily Report Failed!\n* Continuing anyway...\n')
-	# Cross-campus Report
-	ret = ret | 16
-	for tries in range(max_tries):
+		if not flag:
+			print('* FATAL ERROR\n* Daily Report failed!\n* Continuing anyway...\n')
+			ret &= 8
+	# Screenshot Generation
+	if not screenshot:
+		print('Skipping Screenshot Generation...')
+	else:
+		print('Running Screenshot Generation...')
 		try:
-			get = login.session.get(cross_url, headers=headers)
-			soup = BeautifulSoup(get.text, 'html.parser')
-			start_date = soup.find('input', {'id': 'start_date'})['value']
-			end_date = soup.find('input', {'id': 'end_date'})['value']
-			cross_data['start_date'] = start_date
-			cross_data['end_date'] = end_date
-			post = login.session.post(cross_post_url, data=cross_data, headers=headers)
-			if post.url == cross_return_url:
-				print('Cross-campus Report Successful! Until: {0}'.format(end_date))
-				ret = ret & -17
-				break
-			print('* Error: Cross-campus Report: Run {0} Finished but Failed to leave a record, retrying...'.format(
-				tries))
+			screenshot_generator(real_name, mobile_phone)
 		except:
-			print('* Error: Cross-campus Report: Run {0} Failed, detail as follows:'.format(tries))
+			print('* Error: Screenshot Generation throws error, detail as follows:')
 			print(traceback.format_exc())
-			continue
-	if ret & 16:
-		print('* FATAL ERROR\n* Cross-campus Report Failed!\n')
+
+	# Cross-campus Report
+	if not cross_campus:
+		print('Skipping Cross-campus Report...')
+	else:
+		print('Running Cross-campus Report...')
+		flag = False
+		for tries in range(max_tries):
+			try:
+				if cross_campus_report(login, (cross_url, cross_post_url, cross_return_url), cross_data, headers):
+					flag = True
+					break
+			except:
+				print('* Error: Cross-campus: Run {} throws error, detail as follows:'.format(tries))
+				print(traceback.format_exc())
+				continue
+		if not flag:
+			print('* FATAL ERROR\n* Cross-campus Report failed!\n')
+			ret &= 32
 	return ret
 
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(
-		description='URC nCov auto report script.', epilog='Men cannot live free, but he can die free.')
+	parser = argparse.ArgumentParser(description='URC nCov auto report script.',
+	                                 epilog='Men cannot live free, but he can die free.')
 	parser.add_argument('username', help='your student number', type=str)
 	parser.add_argument('password', help='your CAS password', type=str)
 	parser.add_argument(
