@@ -19,10 +19,10 @@ py report.py [-h] [-p DATA_PATH] [-t MAX_TRIES] [-n REAL_NAME] [-m MOBILE_PHONE]
 ```
 
 |Abbreviation|Arguments|Help|Default|
-|:-:|:-:|:-:|:-:|:-:|
+|:-:|:-:|:-:|:-:|
 |(positional)|username|your student number|(required)|
 |(positional)|password|your CAS password|(required)|
-|-dsc|(none)|runs Daily Report/Screenshot Generation/Cross-campus Report|(none)|
+|-dsc|(none)|runs Daily Report / Screenshot Generation / Cross-campus Report|(none)|
 |-p|DATA_PATH|path to your own data.json|'data.json'|
 |-t|MAX_TRIES|max tries as in reports|5|
 |-n|REAL_NAME|your real name to generate screenshots|(when empty, read from previous report)|

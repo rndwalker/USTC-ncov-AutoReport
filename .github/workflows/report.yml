@@ -31,8 +31,6 @@ jobs:
         env:
           USERNAME: ${{ secrets.Username }}
           PASSWORD: ${{ secrets.Password }}
-          REAL_NAME: ${{ secrets.Real_name }}
-          MOBILE_PHONE: ${{ secrets.Mobile_phone }}
 
         run: |
           python report.py -dsc "$USERNAME" "$PASSWORD"
