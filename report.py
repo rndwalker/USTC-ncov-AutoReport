@@ -2,32 +2,70 @@ import argparse
 import json
 import re
 import traceback
+from datetime import datetime, timezone, timedelta
+from urllib.parse import unquote
 
+import requests
 from bs4 import BeautifulSoup
 
-from ustclogin2 import Login
+from constant import headers as const_headers, cross_data as const_cross_data
+from constant import home_url, daily_url, cross_post_url
 
 
-def do_login(username, password):
+def get_passport(username, password, session, service):
+	get = session.get('https://passport.ustc.edu.cn/login?service=' + service, headers=const_headers)
+	soup = BeautifulSoup(get.text, 'html.parser')
+	CAS_LT = soup.find('input', {'name': 'CAS_LT'})['value']
+	data = {
+		'model': 'uplogin.jsp',
+		'service': unquote(service),
+		'warn': '',
+		'showCode': '',
+		'username': username,
+		'password': str(password),
+		'button': '',
+		'CAS_LT': CAS_LT,
+		'LT': ''
+	}
+	return session.post('https://passport.ustc.edu.cn/login', data=data, headers=const_headers)
+
+
+def get_token(username, password):
 	token = ''
-	login = Login(username, password, 'https://weixine.ustc.edu.cn/2020/caslogin')
-	if login.login():
-		data = login.result.text
-		data = data.encode('ascii', 'ignore').decode('utf-8', 'ignore')
-		soup = BeautifulSoup(data, 'html.parser')
+	session = requests.Session()
+	post = get_passport(username, password, session, 'https://weixine.ustc.edu.cn/2020/caslogin')
+	if post.url != 'https://passport.ustc.edu.cn/login':
+		soup = BeautifulSoup(post.text, 'html.parser')
 		token = soup.find('input', {'name': '_token'})['value']
-	return token, login
+	return token, session
 
 
-def daily_report(login, url, data, headers):
-	post = login.session.post(url, data=data, headers=headers)
+def read_info(session, headers):
+	get = session.get(home_url, headers=headers)
+	soup = BeautifulSoup(get.text, 'html.parser')
+	# noinspection SpellCheckingInspection
+	jinji_lxr = soup.find('input', {'name': 'jinji_lxr'})['value']
+	# noinspection SpellCheckingInspection
+	jinji_guanxi = soup.find('input', {'name': 'jinji_guanxi'})['value']
+	# noinspection SpellCheckingInspection
+	jiji_mobile = soup.find('input', {'name': 'jiji_mobile'})['value']
+	dorm_building = soup.find('input', {'name': 'dorm_building'})['value']
+	dorm = soup.find('input', {'name': 'dorm'})['value']
+	# noinspection SpellCheckingInspection
+	read_data = {'jinji_lxr': jinji_lxr, 'jinji_guanxi': jinji_guanxi, 'jiji_mobile': jiji_mobile,
+	             'dorm_building': dorm_building, 'dorm': dorm}
+	return read_data, jinji_lxr, jiji_mobile
+
+
+def daily_report(session, data, headers):
+	post = session.post(daily_url, data=data, headers=headers)
 	soup = BeautifulSoup(post.text, 'html.parser')
-	alert = soup.find('p', {'class': 'alert alert-success'})
-	if alert.text.find('上报成功') != -1:
+	alert = soup.find('p', {'class': 'alert alert-success'}).text
+	if '上报成功' in alert:
 		print('Got Daily Report Success Alert!')
 	else:
-		print("* Warning: Daily Report: Failed to get success alert...")
-	search_result = re.compile('((0|[1-9]\\d*)(年|月|周|星期|日|天|小时|时|分钟|分|秒))+').search(alert.text)
+		print('* Warning: Daily Report: Failed to get success alert...')
+	search_result = re.compile('((0|[1-9]\\d*)(年|月|周|星期|日|天|小时|时|分钟|分|秒))+').search(alert)
 	if search_result:
 		time_diff = search_result.group().replace('年', ' year(s) ').replace('月', ' month(s) ') \
 			.replace('周', ' week(s) ').replace('星期', ' week(s) ').replace('日', ' day(s) ') \
@@ -36,24 +74,30 @@ def daily_report(login, url, data, headers):
 		print('Daily Report Successful!\nLast report: {} before.'.format(time_diff))
 		return True
 	else:
-		print("* Warning: Daily Report: Failed to get last report time...")
-	print('* Error: Daily Report: Finished but Failed to get response, retrying...')
-	return False
+		print('* Error: Daily Report: Finished but failed to get last report time, retrying...')
+		return False
 
 
-def screenshot_generator(real_name, mobile_phone):
-	pass  # WIP
+def screenshot_upload(real_name, mobile_phone):
+	# generate_akm()
+	# generate_xcm()
+	# generate_hs()
+	# pic_upload()
+	pass
 
 
-def cross_campus_report(login, urls, data, headers):
-	get = login.session.get(urls[0], headers=headers)
-	soup = BeautifulSoup(get.text, 'html.parser')
-	start_date = soup.find('input', {'id': 'start_date'})['value']
-	end_date = soup.find('input', {'id': 'end_date'})['value']
-	data['start_date'] = start_date
-	data['end_date'] = end_date
-	post = login.session.post(urls[1], data=data, headers=headers)
-	if post.url == urls[2]:
+def cross_campus_report(session, headers, cross_data):
+	start = datetime.now(tz=timezone(timedelta(hours=+8)))
+	if start.hour >= 20:
+		end = start + timedelta(days=1)
+	else:
+		end = start.replace(hour=23, minute=59, second=59)
+	start_date = start.strftime('%Y-%m-%d %H:%M:%S')
+	end_date = end.strftime('%Y-%m-%d %H:%M:%S')
+	cross_data['start_date'] = start_date
+	cross_data['end_date'] = end_date
+	post = session.post(cross_post_url, cross_data, headers=headers)
+	if start_date in post.text and end_date in post.text:
 		print('Cross-campus Report Successful!\n{} to {}.'.format(start_date, end_date))
 		return True
 	print('* Error: Cross-campus Report: Finished but Failed to leave a record, retrying...')
@@ -61,81 +105,72 @@ def cross_campus_report(login, urls, data, headers):
 
 
 def report(username, password, daily, screenshot, cross_campus, data_path, max_tries, real_name, mobile_phone):
-	# Constant Values
-	headers = {
-		'authority': 'weixine.ustc.edu.cn',
-		'origin': 'https://weixine.ustc.edu.cn',
-		'upgrade-insecure-requests': '1',
-		'content-type': 'application/x-www-form-urlencoded',
-		'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
-		              'Chrome/99.0.4844.51 Safari/537.36',
-		'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;',
-		'referer': 'https://weixine.ustc.edu.cn/2020/',
-		'accept-language': 'zh-CN,zh;q=0.9',
-		'Connection': 'close',
-	}
-	cross_data = {"return_college[]": [
-		"中校区",
-		"西校区",
-		"南校区",
-		"北校区",
-		"东校区"
-	], "reason": "实验、自习", "t": "3"}
-	home_url = 'https://weixine.ustc.edu.cn/2020'
-	daily_url = 'https://weixine.ustc.edu.cn/2020/daliy_report'
-	cross_url = 'https://weixine.ustc.edu.cn/2020/apply/daliy/i?t=3'
-	cross_return_url = 'https://weixine.ustc.edu.cn/2020/apply_total?t=d'
-	cross_post_url = 'https://weixine.ustc.edu.cn/2020/apply/daliy/post'
 	ret = 0
 	# Login
-	token, login = "", None
+	token, session = '', None
 	for tries in range(max_tries):
 		try:
-			token, login = do_login(username, password)
-			if token and login:
+			token, session = get_token(username, password)
+			if token and session:
 				break
 		except:
 			print('* Error: Login: Get Token run {} throws error, detail as follows:'.format(tries))
 			print(traceback.format_exc())
 			continue
-	if not token or not login:
-		print('*** FATAL ERROR\n*** Login Failed!\n*** Script Failed!\n')
+	if not token or not session:
+		print('*** FATAL ERROR\n*** Login Failed!\n*** Script Failed!')
 		return 2
-	cookie = 'PHPSESSID=' + login.cookies.get('PHPSESSID') + ';XSRF-TOKEN=' + login.cookies.get(
-		'XSRF-TOKEN') + ';laravel_session=' + login.cookies.get('laravel_session')
-	headers |= {'cookie': cookie}
+	# noinspection SpellCheckingInspection
+	cookie = 'PHPSESSID=' + session.cookies.get('PHPSESSID') + ';XSRF-TOKEN=' + session.cookies.get(
+		'XSRF-TOKEN') + ';laravel_session=' + session.cookies.get('laravel_session')
+	headers = const_headers | {'cookie': cookie}
+	cross_data = const_cross_data | {'_token': token}
 	# Read JSON
 	try:
 		with open(data_path, 'r+', encoding='utf-8') as f:
 			data = json.loads(f.read())
 			if not data:
-				raise RuntimeError("* Error: Read JSON: Empty json found in {}!".format(data_path))
+				raise RuntimeError('* Error: Read JSON: Empty json found in {}!'.format(data_path))
 			data |= {'_token': token}
-			cross_data |= {'_token': token}
 	except:
-		print('*** FATAL ERROR\n*** Error reading JSON!\n*** Script Failed!\n')
+		print('*** FATAL ERROR\n*** Error reading JSON!\n*** Script Failed!')
 		print(traceback.format_exc())
 		return 4
-	# Getting Previous Daily Report Data
-	try:
-		get = login.session.get(home_url, headers=headers)
-		soup = BeautifulSoup(get.text, 'html.parser')
-		jinji_lxr = soup.find('input', {'name': 'jinji_lxr'})['value']
-		jinji_guanxi = soup.find('input', {'name': 'jinji_guanxi'})['value']
-		jiji_mobile = soup.find('input', {'name': 'jiji_mobile'})['value']
-		dorm_building = soup.find('input', {'name': 'dorm_building'})['value']
-		dorm = soup.find('input', {'name': 'dorm'})['value']
-		if not real_name:
-			real_name = jinji_guanxi
+
+	# Reading information from previous report
+	read_data, read_name, read_mobile = {}, '', ''
+	for tries in range(max_tries):
+		try:
+			read_data, read_name, read_mobile = read_info(session, headers)
+			if read_data and read_name and read_mobile:
+				break
+		except:
+			print('* Error: Reading Info: Run {} throws error, detail as follows:'.format(tries))
+			print(traceback.format_exc())
+			continue
+	if read_data:
+		data |= read_data
+	else:
+		print('* Warning: Daily Report: Reading previous report info failed, using default JSON.')
+	if real_name:
+		print('Using specified real name.')
+	else:
+		if read_name:
 			print('Using real name from previous report...')
-		if not mobile_phone:
-			mobile_phone = jiji_mobile[:3] + "****" + jiji_mobile[7:11]
+			real_name = read_name
+		else:
+			print('* Caution: Using masked real name for Screenshot Generation; NO WARRANTIES!')
+			real_name = '***'
+	if mobile_phone:
+		print('Using specified mobile phone.')
+	else:
+		if read_mobile:
 			print('Using mobile phone from previous report...')
-		data |= {'jinji_lxr': jinji_lxr, 'jinji_guanxi': jinji_guanxi, 'jiji_mobile': jiji_mobile,
-		         'dorm_building': dorm_building, 'dorm': dorm}
-	except:
-		print('* Warning: Daily Report: Error getting previous report data, using default JSON:')
-		print(traceback.format_exc())
+			mobile_phone = read_mobile[:3] + '****' + read_mobile[7:11]
+		else:
+			print('* Caution: Using fake mobile phone for Screenshot Generation; NO WARRANTIES!')
+			mobile_phone = '189****0604'
+
 	# Daily Report
 	if not daily:
 		print('Skipping Daily Report...')
@@ -144,7 +179,7 @@ def report(username, password, daily, screenshot, cross_campus, data_path, max_t
 		flag = False
 		for tries in range(max_tries):
 			try:
-				if daily_report(login, daily_url, data, headers):
+				if daily_report(session, data, headers):
 					flag = True
 					break
 			except:
@@ -152,15 +187,16 @@ def report(username, password, daily, screenshot, cross_campus, data_path, max_t
 				print(traceback.format_exc())
 				continue
 		if not flag:
-			print('* FATAL ERROR\n* Daily Report failed!\n* Continuing anyway...\n')
-			ret &= 8
+			print('*** FATAL ERROR\n*** Daily Report failed!\n*** Continuing anyway...')
+			ret |= 8
+
 	# Screenshot Generation
 	if not screenshot:
 		print('Skipping Screenshot Generation...')
 	else:
 		print('Running Screenshot Generation...')
 		try:
-			screenshot_generator(real_name, mobile_phone)
+			screenshot_upload(real_name, mobile_phone)
 		except:
 			print('* Error: Screenshot Generation throws error, detail as follows:')
 			print(traceback.format_exc())
@@ -173,7 +209,7 @@ def report(username, password, daily, screenshot, cross_campus, data_path, max_t
 		flag = False
 		for tries in range(max_tries):
 			try:
-				if cross_campus_report(login, (cross_url, cross_post_url, cross_return_url), cross_data, headers):
+				if cross_campus_report(session, headers, cross_data):
 					flag = True
 					break
 			except:
@@ -181,14 +217,14 @@ def report(username, password, daily, screenshot, cross_campus, data_path, max_t
 				print(traceback.format_exc())
 				continue
 		if not flag:
-			print('* FATAL ERROR\n* Cross-campus Report failed!\n')
-			ret &= 32
+			print('*** FATAL ERROR\n*** Cross-campus Report failed!')
+			ret |= 32
 	return ret
 
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='URC nCov auto report script.',
-	                                 epilog='Men cannot live free, but he can die free.')
+	                                 epilog='Man cannot live free, but he can die free.')
 	parser.add_argument('username', help='your student number', type=str)
 	parser.add_argument('password', help='your CAS password', type=str)
 	parser.add_argument(

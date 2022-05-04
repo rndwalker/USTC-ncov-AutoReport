@@ -2,3 +2,4 @@
 nohup.out
 .idea
 *.pyc
+/venv/
