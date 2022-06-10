@@ -22,16 +22,17 @@ jobs:
       - name: Set up Python 3.10
         uses: actions/setup-python@v2
         with:
-          python-version: 3.10
+          python-version: '3.10'
       - name: Install dependencies
         run: |
-          apt install wkhtmltopdf
+          apt install firefox firefox-gecko
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run report script
         env:
           USERNAME: ${{ secrets.Username }}
           PASSWORD: ${{ secrets.Password }}
+          REALNAME: ${{ secrets.Realname }}
 
         run: |
           python report.py -dsc "$USERNAME" "$PASSWORD"

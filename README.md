@@ -12,12 +12,14 @@
 
 Fork & grand rework of https://github.com/Kobe972/USTC-ncov-AutoReport.
 
-**Screenshot (with fake QR code) auto generation WIP; when finished, should work as of May 5, 2022.**
+**Screenshot (fake) auto generation finished, should work as of May 12, 2022.**
 
 ### Usage
 
 ```
-py report.py [-h] [-p DATA_PATH] [-t MAX_TRIES] [-n REAL_NAME] [-m MOBILE_PHONE]
+usage: report.py [-h] [-d] [-s] [-c] [-t MAX_TRIES]
+                 [-n REAL_NAME] [-m MOBILE_PHONE] [-i NA_ID]
+                 username password
 ```
 
 | Abbreviation |  Arguments   |                Help                 |   Default   |
@@ -25,7 +27,6 @@ py report.py [-h] [-p DATA_PATH] [-t MAX_TRIES] [-n REAL_NAME] [-m MOBILE_PHONE]
 | (positional) |   username   |         your student number         | (required)  |
 | (positional) |   password   |          your CAS password          | (required)  |
 |     -dsc     |    (none)    |      script running method (*)      |   (none)    |
-|      -p      |  DATA_PATH   |     path to your own data.json      | 'data.json' |
 |      -t      |  MAX_TRIES   |       max tries as in reports       |      5      |
 |      -n      |  REAL_NAME   |  your real name as in screenshots   |    (**)     |
 |      -m      | MOBILE_PHONE | your mobile phone as in screenshots |    (**)     |
@@ -48,14 +49,14 @@ Cross-campus Report Successful! Until: %Y-%m-%d %H:%M:%S
 
 - Fork, or make a new repository with downloaded source code;
 - Settings > Secrets > Actions > New Secret > `USERNAME` & `PASSWORD` as student number and password;
-- For screenshot generation, `REAL_NAME` & `MOBILE_PHONE` as real name and mobile phone (as `189****0604`) as well;
+- For screenshot generation, `REAL_NAME` & `MOBILE_PHONE` as real name and mobile phone (as `198****0817`) as well;
 - Actions > `I understand my workflows, go ahead and enable them` > Auto-report action > `Run workflow` for test.
 
 See https://github.com/Kobe972/USTC-ncov-AutoReport for further instructions.
 
 ## Updates
 
-- **Generates screenshot with fake QR code for now. (WIP)**
+- **Generates fake screenshots (akm, xck, na test) for now.**
 - **Integrates login module for now.**
 - **Catches Cross-Campus Report Error for now.**
 - Minor adjustments & performance optimization. Action should now run in ~30s.
